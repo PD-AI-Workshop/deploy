@@ -1,0 +1,115 @@
+name: "ai-workshop-stack"
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    restart: on-failure:5
+    container_name: ai-workshop-postgres
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    
+  minioS3:
+    image: minio/minio:latest
+    restart: on-failure:5
+    container_name: ai-workshop-minioS3
+    env_file: .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    command: minio server /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://minioS3:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:8.2-alpine
+    restart: on-failure:5
+    container_name: ai-workshop-redis
+    env_file: .env
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: redis-server --requirepass $$REDIS_PASSWORD
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: on-failure:3
+    container_name: ai-workshop-backend
+    ports:
+      - "8000:8000"
+    command: sh -c "poetry run alembic upgrade head && poetry run uvicorn main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://backend:8000/api/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minioS3:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: on-failure
+    container_name: ai-workshop-frontend
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://frontend:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  nginx:
+    build: 
+      context: ./nginx
+      dockerfile: Dockerfile
+    restart: on-failure
+    container_name: ai-workshop-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+
+volumes:
+  miniodata:
+  redisdata:
+  pgdata:
