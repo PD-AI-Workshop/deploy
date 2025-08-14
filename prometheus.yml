@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: "ai-workshop"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backend:8000"]
+  - job_name: "ai-workshop-custom"
+    metrics_path: /custom-metrics
+    static_configs:
+      - targets: ["backend:8000"]
