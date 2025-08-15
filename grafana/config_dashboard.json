@@ -320,32 +320,7 @@
           },
           "unit": "percentunit"
         },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "http_2xx_percentage {__name__=\"http_2xx_percentage\", instance=\"backend:8000\", job=\"ai-workshop-custom\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": true,
-                  "viz": true
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 7,
@@ -375,10 +350,8 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "exemplar": true,
-          "expr": "http_2xx_percentage{app_name=\"$app_name\"}",
-          "interval": "",
-          "legendFormat": "{{label_name}}",
+          "expr": "sum by (endpoint) (rate(http_requests_total{status_class=\"2xx\"}[1m])) / sum by (endpoint) (rate(http_requests_total[1m]))",
+          "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
@@ -476,7 +449,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "http_5xx_percentage{app_name=\"$app_name\"}",
+          "expr": "sum(rate(http_requests_total{status_class=\"5xx\"}[1m])) \n/ \nsum(rate(http_requests_total[1m])) * 100",
           "interval": "",
           "legendFormat": "{{path}}",
           "range": true,
@@ -934,6 +907,6 @@
   "timezone": "",
   "title": "FastAPI Observability",
   "uid": "fastapi-observability",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }
