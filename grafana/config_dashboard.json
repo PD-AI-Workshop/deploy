@@ -701,7 +701,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
-            "drawStyle": "bars",
+            "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
@@ -801,7 +801,7 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "hideZeros": false,
@@ -877,7 +877,8 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "isNone": true,
+          "selected": true,
           "text": "None",
           "value": ""
         },
@@ -933,6 +934,6 @@
   "timezone": "",
   "title": "FastAPI Observability",
   "uid": "fastapi-observability",
-  "version": 8,
+  "version": 3,
   "weekStart": ""
 }
