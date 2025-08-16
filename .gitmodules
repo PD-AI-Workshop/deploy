@@ -1,8 +1,8 @@
 [submodule "frontend"]
 	path = frontend
 	url = https://github.com/PD-AI-Workshop/frontend
-	branch = develop
+	branch = main
 [submodule "backend"]
 	path = backend
 	url = https://github.com/PD-AI-Workshop/backend
-	branch = develop
+	branch = main
