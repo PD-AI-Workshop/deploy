@@ -161,34 +161,9 @@ services:
       - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
       - grafanadata:/var/lib/grafana
 
-  focalboard:
-    image: mattermost/focalboard:latest
-    ports:
-      - "4000:4000"
-    depends_on:
-      - focalboard-db
-    volumes:
-      - ./config.json:/opt/focalboard/config.json
-
-  focalboard-db:
-    image: postgres:14-alpine
-    environment:
-      POSTGRES_DB: ${FOCALBOARD_POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    expose:
-      - "5433"
-    env_file: .env
-    ports:
-      - "5433:5433"
-    volumes:
-      - focalboard_data:/var/lib/postgresql/data
-    command: -p 5433
-
 volumes:
   miniodata:
   redisdata:
   pgdata:
   grafanadata:
   prometheusdata:
-  focalboard_data:
