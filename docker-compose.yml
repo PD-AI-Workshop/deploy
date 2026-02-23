@@ -60,18 +60,18 @@ services:
     ports:
       - "8000:8000"
     command: sh -c "poetry run alembic upgrade head && poetry run uvicorn main:app --host 0.0.0.0 --port 8000"
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://backend:8000/api/health"]
-    #   interval: 10s
-    #   timeout: 10s
-    #   retries: 3
-    # depends_on:
-    #   postgres:
-    #     condition: service_healthy
-    #   redis:
-    #     condition: service_healthy
-    #   minioS3:
-    #     condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://backend:8000/api/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minioS3:
+        condition: service_healthy
     logging:
       driver: json-file
       options:
@@ -85,14 +85,14 @@ services:
     container_name: ai-workshop-frontend
     ports:
       - "3000:3000"
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://frontend:3000"]
-    #   interval: 10s
-    #   timeout: 5s
-    #   retries: 3
-    # depends_on:
-    #   backend:
-    #     condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://frontend:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      backend:
+        condition: service_healthy
 
   nginx:
     build: 
@@ -103,11 +103,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    # depends_on:
-    #   backend:
-    #     condition: service_healthy
-    #   frontend:
-    #     condition: service_healthy
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
 
   promtail:
     image: grafana/promtail:latest
