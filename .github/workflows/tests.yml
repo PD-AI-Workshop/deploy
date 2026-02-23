@@ -8,11 +8,13 @@ on:
       - 'frontend/package.json'
       - 'frontend/tests/**'
       - 'docker-compose.test.yml'
+      - '.github/workflows/**' 
   pull_request:
     branches: [main, develop]
     paths:
       - 'frontend/src/**'
       - 'frontend/tests/**'
+      - '.github/workflows/**' 
 
 jobs:
   test:
@@ -29,7 +31,7 @@ jobs:
       - name: Update submodules to latest
         run: |
           cd deploy
-          git submodule update --remote   # 🔥 подтягиваем последние изменения
+          git submodule update --remote
           git status
 
       - name: Cache node modules
