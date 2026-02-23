@@ -32,14 +32,9 @@ jobs:
           cd deploy
           git submodule init
           git submodule update --recursive
-          
-          # Переходим в frontend
           cd frontend
-          
-          # Смотрим все ветки (включая удаленные)
           git branch -a
           
-          # Пытаемся переключиться на develop
           if git show-ref --verify --quiet refs/heads/develop; then
             echo "Switching to local develop branch"
             git checkout develop
@@ -78,6 +73,12 @@ jobs:
           BASE_API_URL=http://localhost:8000/api
           CI=true
           EOF
+
+      - name: Check env files
+        run: |
+          echo "=== Checking env files ==="
+          ls -la deploy/.env.test || echo ".env.test not found"
+          ls -la deploy/.env || echo ".env not found"
 
       - name: Start services
         run: |
