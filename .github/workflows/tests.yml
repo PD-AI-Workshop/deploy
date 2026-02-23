@@ -96,6 +96,26 @@ jobs:
           docker compose -f docker-compose.test.yml up -d
           npx wait-on http://localhost http://localhost:8000/health
 
+      - name: Debug Postgres
+        run: |
+          echo "=== Postgres logs ==="
+          docker logs ai-workshop-postgres
+          
+          echo "=== Postgres processes ==="
+          docker exec ai-workshop-postgres ps aux || echo "Cannot exec into postgres"
+          
+          echo "=== Check if postgres is listening ==="
+          docker exec ai-workshop-postgres netstat -tlnp || echo "netstat not available"
+          
+          echo "=== Try pg_isready directly ==="
+          docker exec ai-workshop-postgres pg_isready -U postgres
+          
+          echo "=== Try connecting with psql ==="
+          docker exec ai-workshop-postgres psql -U postgres -c "SELECT 1;" || echo "Cannot connect"
+          
+          echo "=== Check environment variables ==="
+          docker exec ai-workshop-postgres env | grep POSTGRES
+
       - name: Run tests
         run: |
           cd deploy/frontend/tests
