@@ -147,7 +147,7 @@ services:
     image: grafana/grafana:10.2.0
     restart: on-failure
     container_name: ai-workshop-grafana
-    env_file: .env
+    env_file: .env.test
     ports:
       - "3001:3001"
     environment:

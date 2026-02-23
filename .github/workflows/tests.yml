@@ -78,7 +78,6 @@ jobs:
         run: |
           echo "=== Checking env files ==="
           ls -la deploy/.env.test || echo ".env.test not found"
-          ls -la deploy/.env || echo ".env not found"
 
       - name: Start services
         run: |
