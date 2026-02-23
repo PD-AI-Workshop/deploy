@@ -32,8 +32,25 @@ jobs:
           cd deploy
           git submodule init
           git submodule update --recursive
+          
+          # Переходим в frontend
           cd frontend
-          git checkout develop
+          
+          # Смотрим все ветки (включая удаленные)
+          git branch -a
+          
+          # Пытаемся переключиться на develop
+          if git show-ref --verify --quiet refs/heads/develop; then
+            echo "Switching to local develop branch"
+            git checkout develop
+          elif git show-ref --verify --quiet refs/remotes/origin/develop; then
+            echo "Switching to origin/develop"
+            git checkout -b develop origin/develop
+          else
+            echo "No develop branch found, staying on current branch"
+            git branch
+          fi
+          
           cd ..
           git config --file .gitmodules submodule.frontend.branch develop
 
@@ -84,4 +101,4 @@ jobs:
         if: always()
         run: |
           cd deploy
-          docker-compose -f docker-compose.test.yml down -v
+          docker compose -f docker-compose.test.yml down -v
