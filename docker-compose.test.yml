@@ -15,12 +15,6 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
     
   minioS3:
     image: minio/minio:latest
@@ -70,7 +64,7 @@ services:
       retries: 3
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_healthy
       minioS3:
