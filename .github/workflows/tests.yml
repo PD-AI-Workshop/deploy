@@ -27,11 +27,15 @@ jobs:
           path: deploy
           submodules: recursive
 
-      - name: Update submodules to latest
+      - name: Update submodules to develop branch
         run: |
           cd deploy
-          git submodule update --remote
-          git status
+          git submodule init
+          git submodule update --recursive
+          cd frontend
+          git checkout develop
+          cd ..
+          git config --file .gitmodules submodule.frontend.branch develop
 
       - name: Cache node modules
         uses: actions/cache@v4
@@ -61,7 +65,7 @@ jobs:
       - name: Start services
         run: |
           cd deploy
-          docker-compose -f docker-compose.test.yml up -d
+          docker compose -f docker-compose.test.yml up -d
           npx wait-on http://localhost http://localhost:8000/health
 
       - name: Run tests
