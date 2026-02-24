@@ -79,42 +79,12 @@ jobs:
           echo "=== Checking env files ==="
           ls -la deploy/.env.test || echo ".env.test not found"
 
-      - name: Create config.json for focalboard
-        run: |
-          cat > deploy/config.json << EOF
-          {
-            "serverRoot": "http://localhost:4000",
-            "port": 4000,
-            "dbType": "postgres",
-            "dbConfig": "postgres://postgres:postgres@focalboard-db:5433/focalboard?sslmode=disable"
-          }
-          EOF
-
       - name: Start services
         run: |
           cd deploy
-          docker compose -f docker-compose.test.yml up -d
-          npx wait-on http://localhost http://localhost:8000/health
-
-      - name: Debug Postgres
-        run: |
-          echo "=== Postgres logs ==="
-          docker logs ai-workshop-postgres
-          
-          echo "=== Postgres processes ==="
-          docker exec ai-workshop-postgres ps aux || echo "Cannot exec into postgres"
-          
-          echo "=== Check if postgres is listening ==="
-          docker exec ai-workshop-postgres netstat -tlnp || echo "netstat not available"
-          
-          echo "=== Try pg_isready directly ==="
-          docker exec ai-workshop-postgres pg_isready -U postgres
-          
-          echo "=== Try connecting with psql ==="
-          docker exec ai-workshop-postgres psql -U postgres -c "SELECT 1;" || echo "Cannot connect"
-          
-          echo "=== Check environment variables ==="
-          docker exec ai-workshop-postgres env | grep POSTGRES
+          chmod +x run_test_stage.sh
+          ./run_test_stage.sh --skip-cleanup
+          npx wait-on http://localhost
 
       - name: Run tests
         run: |

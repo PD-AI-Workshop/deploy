@@ -1,0 +1,60 @@
+#!/bin/bash
+set -e
+
+SKIP_CLEANUP=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --skip-cleanup)
+            SKIP_CLEANUP=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+cleanup() {
+    if [ "$SKIP_CLEANUP" = false ]; then
+        echo "🧹 Cleaning up Docker resources..."
+        docker compose -f docker-compose.test.yml down -v
+        echo "✅ Cleanup completed"
+    else
+        echo "🚫 Cleanup skipped (--skip-cleanup flag set)"
+    fi
+}
+
+trap cleanup EXIT
+
+echo "⚙️ Starting up test stage..."
+docker compose --env-file .env.test -f docker-compose.test.yml up -d
+
+echo "⏳ Waiting for starting up services (healthchecks)..."
+
+services=("ai-workshop-postgres-test" "ai-workshop-minioS3-test" "ai-workshop-redis-test" "ai-workshop-backend-test" "ai-workshop-frontend-test" "ai-workshop-nginx-test")
+
+for service in "${services[@]}"
+do
+  echo "Waiting service: ${service} ..."
+  for i in {1..30}; do
+    status=$(docker inspect --format='{{.State.Health.Status}}' $service)
+    if [ "$status" == "healthy" ]; then
+      echo "✅ $service healthy!"
+      break
+    else
+      echo "⏳ $service status: $status (попытка $i/30)"
+      sleep 2
+    fi
+    if [ $i -eq 30 ]; then
+      echo "❌ $service could not start up"
+      docker ps -a
+      echo "---- $service logs ----"
+      docker logs $service
+      exit 1
+    fi
+  done
+done
+
+echo "✅ Test stage is started up"
