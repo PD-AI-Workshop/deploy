@@ -21,9 +21,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        shard: [1, 2, 3]
     
     steps:
       - name: Checkout deploy repo with submodules
@@ -118,7 +115,7 @@ jobs:
         timeout-minutes: 10
         run: |
           cd deploy/frontend/tests
-          npm run test -- --shard=${{ matrix.shard }}/3
+          npm run test
 
       - name: Upload report
         if: always()
