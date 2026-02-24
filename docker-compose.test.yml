@@ -1,29 +1,27 @@
-name: "ai-workshop-stack"
+name: "ai-workshop-test-stack"
 
 services:
-  postgres:
+  postgres-test:
     image: postgres:14-alpine
     restart: on-failure:5
-    container_name: ai-workshop-postgres
+    networks:
+      - test
+    container_name: ai-workshop-postgres-test
     env_file: .env.test
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_PORT: ${POSTGRES_PORT}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata-test:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
     
-  minioS3:
+  minio-test:
     image: minio/minio:latest
     restart: on-failure:5
-    container_name: ai-workshop-minioS3
-    env_file: .env.test
+    networks:
+      - test
+    container_name: ai-workshop-minioS3-test
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -31,164 +29,106 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - miniodata:/data
+      - miniodata-test:/data
     command: minio server /data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://minioS3:9000/minio/health/ready"]
+      test: ["CMD", "curl", "-f", "http://minio-test:9000/minio/health/ready"]
       interval: 5s
       timeout: 10s
       retries: 3
 
-  redis:
+  redis-test:
     image: redis:8.2-alpine
     restart: on-failure:5
-    container_name: ai-workshop-redis
+    networks:
+      - test
+    container_name: ai-workshop-redis-test
     volumes:
-      - redisdata:/data
+      - redisdata-test:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  backend:
+  backend-test:
     build: 
       context: ./backend
       dockerfile: Dockerfile
     restart: on-failure:3
-    container_name: ai-workshop-backend
+    environment:
+      - ENV=TEST
+      - TESTING=API
+    networks:
+      - test
+    container_name: ai-workshop-backend-test
     ports:
       - "8000:8000"
     command: sh -c "poetry run alembic upgrade head && poetry run uvicorn main:app --host 0.0.0.0 --port 8000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://backend:8000/api/health"]
+      test: ["CMD", "curl", "-f", "http://backend-test:8000/api/health"]
       interval: 10s
       timeout: 10s
       retries: 3
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minioS3:
-        condition: service_healthy
+      postgres-test:
+        condition: service_started
+      redis-test:
+        condition: service_started
+      minio-test:
+        condition: service_started
     logging:
       driver: json-file
       options:
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
 
-  frontend:
+  frontend-test:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    networks:
+      - test
     restart: on-failure
-    container_name: ai-workshop-frontend
+    container_name: ai-workshop-frontend-test
     ports:
       - "3000:3000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://frontend:3000"]
+      test: ["CMD", "curl", "-f", "http://frontend-test:3000"]
       interval: 10s
       timeout: 5s
       retries: 3
     depends_on:
-      backend:
-        condition: service_healthy
+      backend-test:
+        condition: service_started
 
-  nginx:
+  nginx-test:
     build: 
-      context: ./nginx
+      context: ./nginx/test
       dockerfile: Dockerfile
+    networks:
+      - test
     restart: on-failure
-    container_name: ai-workshop-nginx
+    container_name: ai-workshop-nginx-test
     ports:
       - "80:80"
       - "443:443"
     depends_on:
-      backend:
-        condition: service_healthy
-      frontend:
-        condition: service_healthy
-
-  promtail:
-    image: grafana/promtail:latest
-    container_name: ai-workshop-promtail
-    ports:
-      - "9080:9080"
-    volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./promtail-config.yaml:/etc/promtail/config.yml
-    command: "-log.level=warn -config.file=/etc/promtail/config.yml"
-    privileged: true
-
-  loki:
-    image: grafana/loki:latest
-    container_name: ai-workshop-loki
-    ports:
-      - "3100:3100"
-    command: "-log.level=warn -config.file=/etc/loki/local-config.yaml"
-    volumes:
-      - ./loki-config.yaml:/etc/loki/local-config.yaml
-
-  prometheus:
-    image: prom/prometheus:v2.47.2
-    restart: on-failure
-    container_name: ai-workshop-prometheus
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --log.level=error
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheusdata:/prometheus
-  
-  grafana:
-    image: grafana/grafana:10.2.0
-    restart: on-failure
-    container_name: ai-workshop-grafana
-    env_file: .env
-    ports:
-      - "3001:3001"
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
-      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
-      GF_SERVER_HTTP_PORT: ${GF_SERVER_HTTP_PORT}
-      GF_LOG_LEVEL: warn
-      GF_SERVER_SERVE_FROM_SUB_PATH: true
-      GF_SERVER_ROOT_URL: /monitoring
-    volumes:
-      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
-      - grafanadata:/var/lib/grafana
-
-  focalboard:
-    image: mattermost/focalboard:latest
-    ports:
-      - "4000:4000"
-    depends_on:
-      - focalboard-db
-    volumes:
-      - ./config.json:/opt/focalboard/config.json
-
-  focalboard-db:
-    image: postgres:14-alpine
-    environment:
-      POSTGRES_DB: ${FOCALBOARD_POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    expose:
-      - "5433"
-    env_file: .env.test
-    ports:
-      - "5433:5433"
-    volumes:
-      - focalboard_data:/var/lib/postgresql/data
-    command: -p 5433
+      backend-test:
+        condition: service_started
+      frontend-test:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
-  miniodata:
-  redisdata:
-  pgdata:
-  grafanadata:
-  prometheusdata:
-  focalboard_data:
+  miniodata-test:
+  redisdata-test:
+  pgdata-test:
+
+networks:
+  test:
+    driver: bridge

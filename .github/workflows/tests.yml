@@ -8,11 +8,15 @@ on:
       - 'frontend/package.json'
       - 'frontend/tests/**'
       - 'docker-compose.test.yml'
+      - '.github/workflows/**' 
   pull_request:
     branches: [main, develop]
     paths:
       - 'frontend/src/**'
+      - 'frontend/package.json'
       - 'frontend/tests/**'
+      - 'docker-compose.test.yml'
+      - '.github/workflows/**' 
 
 jobs:
   test:
@@ -24,30 +28,60 @@ jobs:
         with:
           path: deploy
           submodules: recursive
-          token: ${{ secrets.GH_PAT }}
 
-      - name: Update submodules to latest
+      - name: Update submodules to develop branch
         run: |
           cd deploy
-          git submodule update --remote   # 🔥 подтягиваем последние изменения
-          git status
+          git submodule init
+          git submodule update --recursive
+          cd frontend
+          git branch -a
+          
+          if git show-ref --verify --quiet refs/heads/develop; then
+            echo "Switching to local develop branch"
+            git checkout develop
+          elif git show-ref --verify --quiet refs/remotes/origin/develop; then
+            echo "Switching to origin/develop"
+            git checkout -b develop origin/develop
+          else
+            echo "No develop branch found, staying on current branch"
+            git branch
+          fi
+          
+          cd ..
+          git config --file .gitmodules submodule.frontend.branch develop
 
       - name: Cache node modules
         uses: actions/cache@v4
         with:
           path: deploy/frontend/tests/node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('deploy/frontend/tests/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: cache-playwright
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('deploy/frontend/tests/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install dependencies
         run: |
           cd deploy/frontend/tests
           npm ci
-          npx playwright install --with-deps chromium
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" != 'true' ]; then
+            npx playwright install --with-deps
+          else
+            npx playwright install-deps || true
+          fi
 
       - name: Create .env
         run: |
@@ -57,13 +91,28 @@ jobs:
           CI=true
           EOF
 
+      - name: Create frontend .env for build
+        run: |
+          cat > deploy/frontend/.env << EOF
+          NEXT_PUBLIC_API_BASE_URL=/api
+          EOF
+
+      - name: Check env files
+        run: |
+          echo "=== Checking env files ==="
+          ls -la deploy/.env.test || echo ".env.test not found"
+          ls -la deploy/frontend/.env || echo ".env in frontend not found"
+
       - name: Start services
+        timeout-minutes: 5
         run: |
           cd deploy
-          docker-compose -f docker-compose.test.yml up -d
-          npx wait-on http://localhost http://localhost:8000/health
+          chmod +x run_test_stage.sh
+          ./run_test_stage.sh --skip-cleanup
+          npx wait-on http://localhost
 
       - name: Run tests
+        timeout-minutes: 10
         run: |
           cd deploy/frontend/tests
           npm run test
@@ -79,4 +128,4 @@ jobs:
         if: always()
         run: |
           cd deploy
-          docker-compose -f docker-compose.test.yml down -v
+          docker compose -f docker-compose.test.yml down -v
