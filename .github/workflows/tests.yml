@@ -64,7 +64,7 @@ jobs:
         run: |
           cd deploy/frontend/tests
           npm ci
-          npx playwright install --with-deps chromium
+          npx playwright install
 
       - name: Create .env
         run: |
