@@ -74,10 +74,17 @@ jobs:
           CI=true
           EOF
 
+      - name: Create frontend .env for build
+        run: |
+          cat > deploy/frontend/.env << EOF
+          NEXT_PUBLIC_API_BASE_URL=/api
+          EOF
+
       - name: Check env files
         run: |
           echo "=== Checking env files ==="
           ls -la deploy/.env.test || echo ".env.test not found"
+          ls -la deploy/frontend/.env || echo ".env in frontend not found"
 
       - name: Start services
         run: |
