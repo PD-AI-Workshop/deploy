@@ -100,6 +100,9 @@ services:
       dockerfile: Dockerfile
     restart: on-failure
     container_name: ai-workshop-nginx
+    volumes:
+      - ./webroot:/var/www/certbot:ro
+      - ./letsencrypt:/etc/letsencrypt
     ports:
       - "80:80"
       - "443:443"
@@ -108,6 +111,14 @@ services:
         condition: service_started
       frontend:
         condition: service_started
+
+  certbot:
+    image: certbot/certbot
+    container_name: ai-workshop-certbot
+    volumes:
+      - ./webroot:/var/www/certbot
+      - ./letsencrypt:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12d & wait $${!}; done;'"
 
   promtail:
     image: grafana/promtail:latest
