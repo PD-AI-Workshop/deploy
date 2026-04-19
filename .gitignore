@@ -3,3 +3,6 @@ node_modules
 playwright-report
 .DS_Store
 config.json
+certbot
+letsencrypt
+webroot
